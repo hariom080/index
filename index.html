@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" 
+rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      :root {
+        --primary: #ff3333; --dark: #1c1c22; --bg: #101014;
+        --text: #e0d4ff; --highlight: #aaaaaa; --badge-text: #ffffff;
+        --radius: 16px; --radius-sm: 10px;
+      }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      body { background: var(--bg); color: var(--text); font-family: 'Rajdhani', sans-serif; padding: 0; margin: 0;
+text-align: center; text-transform: uppercase; overflow-x: hidden; transition: background-color 1s ease; }
+
+      /* ---- ambient ---- */
+      #scanlines { position: fixed; inset: 0; z-index: 9998; pointer-events: none; opacity: 0.18;
+        background: repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, rgba(0,0,0,0.25) 3px); }
+      .particle { position: fixed; bottom: -10px; width: 4px; height: 4px; background: var(--primary); border-radius:
+50%;
+        box-shadow: 0 0 8px var(--primary); z-index: 1; pointer-events: none; animation: rise linear forwards; }
+      @keyframes rise { to { transform: translateY(-110vh) translateX(var(--drift)); opacity: 0; } }
+
+      /* ---- hero ---- */
+      .hero-banner {
+        height: 270px; width: 100%;
+        position: relative; overflow: hidden;
+        background: radial-gradient(ellipse 60% 80% at 50% 100%, color-mix(in srgb, var(--primary) 22%, transparent),
+transparent 70%), var(--bg);
+        transition: all 1s ease;
+      }
+      /* pulsing aura directly behind the character */
+      .hero-aura {
+        position: absolute; left: 50%; bottom: -40px; transform: translateX(-50%);
+        width: 340px; height: 340px; border-radius: 50%;
+        background: radial-gradient(circle, color-mix(in srgb, var(--primary) 45%, transparent) 0%, color-mix(in srgb,
+var(--primary) 18%, transparent) 40%, transparent 70%);
+        filter: blur(10px); animation: auraPulse 3.5s ease-in-out infinite;
+        pointer-events: none;
+      }
+      @keyframes auraPulse {
+        0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
+        50% { opacity: 1; transform: translateX(-50%) scale(1.12); }
+      }
+      /* rotating energy rings */
+      .hero-ring {
+        position: absolute; left: 50%; bottom: -90px; transform: translateX(-50%);
+        width: 300px; height: 300px; border-radius: 50%;
+        border: 1px solid color-mix(in srgb, var(--primary) 50%, transparent);
+        border-top-color: transparent; border-bottom-color: transparent;
+        animation: ringSpin 9s linear infinite; pointer-events: none; opacity: 0.6;
+      }
+      .hero-ring.r2 { width: 380px; height: 380px; bottom: -130px; animation-duration: 14s; animation-direction: reverse;
+opacity: 0.3; }
+      @keyframes ringSpin { to { transform: translateX(-50%) rotate(360deg); } }
+      /* side energy flares fill the empty space */
+      .hero-flare {
+        position: absolute; top: 20%; width: 220px; height: 220px; border-radius: 50%;
+        background: radial-gradient(circle, color-mix(in srgb, var(--primary) 25%, transparent), transparent 65%);
+        filter: blur(30px); animation: flareDrift 7s ease-in-out infinite alternate; pointer-events: none;
+      }
+      .hero-flare.left { left: -60px; }
+      .hero-flare.right { right: -60px; animation-delay: 3.5s; }
+      @keyframes flareDrift { from { opacity: 0.25; transform: translateY(0); } to { opacity: 0.7; transform:
+translateY(18px); } }
+      /* the character */
+      .hero-img {
+        position: absolute; inset: 0; z-index: 2;
+        background-image: url('https://i.postimg.cc/K8pPBJ7w/lucid-origin-make-me-an-anime-style-hero-character-with-a-dark-purple-theme-resembling-Tokyo-0-1.png');
+        background-size: contain; background-repeat: no-repeat; background-position: center bottom;
+        filter: drop-shadow(0 0 25px color-mix(in srgb, var(--primary) 55%, transparent));
+        animation: heroFloat 5s ease-in-out infinite;
+      }
+      @keyframes heroFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+      /* vignette so edges melt into the page */
+      .hero-vignette {
+        position: absolute; inset: 0; z-index: 3; pointer-events: none;
+        background:
+          linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 30%, transparent 55%, var(--bg) 100%),
+          linear-gradient(to right, var(--bg), transparent 22%, transparent 78%, var(--bg));
+      }
+      /* animated energy line replaces the flat border */
+      .hero-line {
+        position: absolute; bottom: 0; left: 0; right: 0; height: 2px; z-index: 4;
+        background: linear-gradient(90deg, transparent, var(--primary) 30%, #fff 50%, var(--primary) 70%, transparent);
+        background-size: 200% 100%; animation: lineFlow 4s linear infinite;
+        box-shadow: 0 0 18px var(--primary);
+      }
+      @keyframes lineFlow { to { background-position: -200% 0; } }
+      .app-title { font-family: 'Bebas Neue', sans-serif; font-size: 54px; letter-spacing: 10px; color: #fff;
+text-shadow: 0 0 15px var(--primary), 0 0 40px var(--primary); position: absolute; bottom: 12px; left: 50%; transform:
+translateX(-50%); margin: 0; z-index: 10; }
+      .app-sub { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 9px;
+letter-spacing: 6px; color: var(--highlight); white-space: nowrap; }
+      .glitch { animation: glitch 4s infinite; }
+      @keyframes glitch {
+        0%, 100% { transform: translateX(-50%) skew(0deg); }
+        5% { transform: translateX(-52%) skew(-8deg); text-shadow: -2px 0 red, 2px 0 cyan; }
+        10% { transform: translateX(-48%) skew(8deg); text-shadow: 2px 0 red, -2px 0 cyan; }
+        15% { transform: translateX(-50%) skew(0deg); text-shadow: 0 0 15px var(--primary); }
+      }
+      .container { padding: 25px 15px 15px; position: relative; z-index: 2; max-width: 560px; margin: 0 auto; }
+
+      /* ---- status panel ---- */
+      .stats-panel { background: var(--dark); padding: 20px 15px; border: 1px solid rgba(255,255,255,0.1);
+        border-radius: var(--radius); margin-bottom: 18px;
+        box-shadow: 0 8px 30px -10px var(--primary), inset 0 1px 0 rgba(255,255,255,0.06);
+        transition: all 1s ease; }
+      .level-text { font-family: 'Bebas Neue'; font-size: 34px; color: #fff; margin: 0; letter-spacing: 2px; text-shadow:
+0 0 10px var(--primary); }
+      .exp-text { font-size: 13px; color: var(--highlight); margin: 4px 0 8px; letter-spacing: 1px; }
+      .progress-container { width: 100%; background: rgba(0,0,0,0.6); border-radius: 99px; height: 16px; position:
+relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+      .progress-bar { height: 100%; background: var(--primary); width: 0%; border-radius: 99px; box-shadow: 0 0 12px
+var(--primary); transition: width 1s cubic-bezier(.22,1,.36,1); }
+      .progress-bar::after { content: ''; position: absolute; top: 0; left: -60px; width: 60px; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent); animation: sheen 2.5s
+infinite; }
+      @keyframes sheen { to { left: 110%; } }
+
+      .streak-row { display: flex; justify-content: center; gap: 18px; margin-top: 12px; font-family: 'Bebas Neue';
+font-size: 17px; letter-spacing: 2px; }
+      .streak-flame { color: #ff9500; text-shadow: 0 0 10px #ff5500; animation: flamePulse 1s infinite alternate; }
+      @keyframes flamePulse { from { text-shadow: 0 0 6px #ff5500; } to { text-shadow: 0 0 16px #ffaa00; } }
+
+      .titles-row { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+      .title-badge { font-size: 10px; letter-spacing: 2px; padding: 4px 12px; border-radius: 99px; border: 1px solid
+rgba(255,255,255,0.15); color: var(--highlight); background: rgba(0,0,0,0.5); }
+
+      .rank-badge { font-family: 'Bebas Neue'; font-size: 24px; padding: 8px 22px; border-radius: 99px; margin-top: 14px;
+display: inline-block; letter-spacing: 4px; cursor: pointer; background: var(--primary); color: var(--badge-text);
+box-shadow: 0 4px 20px -4px var(--primary); border: none; transition: transform 0.15s ease; }
+      .rank-badge:active { transform: scale(0.96); }
+      .rank-info { background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.12); border-radius:
+var(--radius-sm); padding: 15px; margin-top: 12px; font-size: 15px; color: #fff; display: none; text-align: left;
+line-height: 1.6; }
+
+      .trial-btn { display: block; margin: 14px auto 0; background: transparent; border: 1px solid rgba(255,255,255,0.2);
+border-radius: 99px; color: var(--highlight); font-family: 'Bebas Neue'; font-size: 13px; letter-spacing: 2px; padding:
+7px 18px; cursor: pointer; transition: 0.25s; }
+      .trial-btn:hover { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 12px -4px var(--primary); }
+
+      /* ---- nav pill bar ---- */
+      .nav { display: flex; justify-content: center; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; background:
+var(--dark); padding: 6px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.07); }
+      .nav-btn { background: transparent; border: none; border-radius: 99px; color: var(--highlight); padding: 9px 4px;
+cursor: pointer; font-weight: 700; flex: 1 1 0; min-width: 60px; font-family: 'Rajdhani'; font-size: 14px; transition:
+0.25s; }
+      .nav-btn.active { background: var(--primary); color: var(--badge-text); box-shadow: 0 4px 14px -4px var(--primary);
+}
+
+      /* ---- cards ---- */
+      .card { background: var(--dark); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); padding:
+22px 16px; display: none; margin-bottom: 30px; position: relative; box-shadow: 0 10px 40px -20px #000; transition: all 1s
+ease; overflow: hidden; }
+      .card::before { content: ''; position: absolute; inset: 0; background-image: repeating-linear-gradient(45deg,
+transparent, transparent 5px, rgba(255,255,255,0.02) 5px, rgba(255,255,255,0.02) 10px); pointer-events: none; }
+      .card.active { display: block; animation: cardIn 0.35s cubic-bezier(.22,1,.36,1); }
+      @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+      label { display: block; text-align: left; margin: 14px 2% 6px; font-size: 12px; color: var(--highlight);
+letter-spacing: 2px; font-weight: 700; }
+      select, input { width: 96%; padding: 13px 14px; margin: 0 auto 12px; display: block; background: rgba(0,0,0,0.55);
+color: #fff; border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-sm); font-family: 'Rajdhani';
+font-size: 17px; font-weight: 600; transition: 0.25s; }
+      select:focus, input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 10px -2px var(--primary);
+}
+
+      .action-btn { width: 96%; background: var(--primary); color: var(--badge-text); font-family: 'Bebas Neue';
+font-size: 23px; letter-spacing: 3px; padding: 14px; border: none; border-radius: var(--radius-sm); cursor: pointer;
+margin-top: 8px; box-shadow: 0 6px 22px -6px var(--primary); transition: transform 0.12s ease, box-shadow 0.12s ease,
+filter 0.2s; }
+      .action-btn:hover { filter: brightness(1.1); }
+      .action-btn:active { transform: scale(0.97); box-shadow: 0 2px 10px -4px var(--primary); }
+
+      /* ---- logs ---- */
+      .log-entry { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.07); border-left: 4px solid
+var(--primary); padding: 12px 14px; margin-bottom: 10px; text-align: left; display: flex; justify-content: space-between;
+align-items: center; border-radius: var(--radius-sm); transition: 0.2s; }
+      .log-entry:hover { border-color: rgba(255,255,255,0.18); }
+      .log-ex { font-weight: 700; color: #fff; font-size: 17px; letter-spacing: 1px; }
+      .log-stats { color: var(--highlight); font-size: 14px; margin-top: 3px; }
+      .del-btn { background: transparent; border: 1px solid rgba(255,85,85,0.4); border-radius: 99px; color: #ff5555;
+font-size: 12px; padding: 3px 10px; margin-top: 6px; cursor: pointer; transition: 0.2s; }
+      .del-btn:hover { background: #ff3333; color: #fff; border-color: #ff3333; }
+
+      .lb-entry { background: rgba(0,0,0,0.5); border: 1px solid var(--primary); border-radius: var(--radius-sm);
+padding: 12px 14px; margin-bottom: 10px; display: flex; justify-content: space-between; font-family: 'Bebas Neue';
+font-size: 21px; align-items: center; }
+
+      /* ---- quests ---- */
+      .quest { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-sm);
+padding: 12px 15px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; text-align:
+left; transition: 0.3s; }
+      .quest.done { border-color: var(--primary); box-shadow: 0 0 14px -6px var(--primary), inset 0 0 20px -14px
+var(--primary); }
+      .quest-name { font-family: 'Bebas Neue'; font-size: 17px; letter-spacing: 2px; color: #fff; }
+      .quest-desc { font-size: 12px; color: var(--highlight); text-transform: none; }
+      .quest-check { font-family: 'Bebas Neue'; font-size: 18px; color: var(--highlight); white-space: nowrap;
+padding-left: 10px; }
+      .quest.done .quest-check { color: var(--primary); text-shadow: 0 0 8px var(--primary); }
+
+      /* ---- tiles ---- */
+      .stat-tiles { display: flex; gap: 8px; margin-bottom: 16px; }
+      .tile { flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius:
+var(--radius-sm); padding: 12px 4px; }
+      .tile-num { font-family: 'Bebas Neue'; font-size: 26px; color: #fff; text-shadow: 0 0 8px var(--primary); }
+      .tile-lbl { font-size: 10px; color: var(--highlight); letter-spacing: 1px; }
+
+      .pr-entry { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm);
+padding: 10px 15px; margin-bottom: 6px; display: flex; justify-content: space-between; font-family: 'Bebas Neue';
+font-size: 17px; letter-spacing: 1px; }
+      .pr-entry span:last-child { color: #fff; text-shadow: 0 0 8px var(--primary); }
+
+      /* ---- overlays ---- */
+      #flashOverlay { display: none; position: fixed; inset: 0; background:#fff; z-index:9999; pointer-events: none; }
+      #prOverlay { display: none; position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+        background: radial-gradient(circle, transparent 30%, var(--primary) 160%); align-items: center; justify-content:
+center; }
+      #prOverlay div { font-family: 'Bebas Neue'; font-size: 42px; letter-spacing: 6px; color: #fff;
+        text-shadow: 0 0 20px var(--primary), 0 0 60px var(--primary); animation: prZoom 1.4s ease-out; }
+      @keyframes prZoom { 0% { transform: scale(3); opacity: 0; } 30% { transform: scale(1); opacity: 1; } 100% {
+opacity: 1; } }
+      .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+      @keyframes shake { 10%, 90% { transform: translate3d(-8px, 0, 0); } 40%, 60% { transform: translate3d(8px, 0, 0); }
+}
+      .flicker { animation: flicker 0.1s infinite alternate; }
+      @keyframes flicker { 0% { background: #fff; } 100% { background: var(--primary); } }
+
+      /* ---- player picker (glass) ---- */
+      .player-select-wrap { position: absolute; top: 10px; right: 10px; z-index: 100; text-align: right; }
+      .player-select { background: rgba(10,10,14,0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+border: 1px solid color-mix(in srgb, var(--primary) 60%, transparent); border-radius: 99px; color: #fff; padding: 8px
+14px; width: 132px; font-family: 'Rajdhani'; font-weight: 700; box-shadow: 0 4px 16px -6px var(--primary); }
+      .reg-btn { display: block; margin-top: 6px; width: 132px; background: rgba(10,10,14,0.65); backdrop-filter:
+blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid color-mix(in srgb, var(--primary) 60%, transparent);
+border-radius: 99px; color: #fff; font-family: 'Bebas Neue'; font-size: 11px; letter-spacing: 2px; padding: 7px; cursor:
+pointer; transition: 0.2s; }
+      .reg-btn:hover { background: var(--primary); color: var(--badge-text); box-shadow: 0 0 16px -4px var(--primary); }
+
+      /* ---- lock screens ---- */
+      .lock-screen { background: rgba(0,0,0,0.5); border: 1px dashed rgba(255,255,255,0.25); border-radius:
+var(--radius); padding: 28px 16px; text-align: center; }
+      .lock-screen .lock-icon { font-size: 38px; margin-bottom: 10px; }
+      .lock-screen h4 { font-family: 'Bebas Neue'; letter-spacing: 2px; color: #fff; font-size: 21px; margin: 0 0 8px; }
+      .lock-screen p { font-size: 13px; color: var(--highlight); margin: 0 0 15px; text-transform: none; }
+
+      h3.section { font-family:'Bebas Neue'; letter-spacing: 2px; color: #fff; font-size: 20px; }
+      /* ---- toasts ---- */
+#toastWrap { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 10000;
+  display: flex; flex-direction: column; gap: 8px; width: min(92vw, 420px); pointer-events: none; }
+.toast { background: rgba(12,12,18,0.92); backdrop-filter: blur(10px); border: 1px solid color-mix(in srgb, var(--primary) 55%, transparent);
+  border-radius: 12px; padding: 12px 16px; font-family: 'Bebas Neue'; font-size: 16px; letter-spacing: 2px; color: #fff;
+  box-shadow: 0 8px 30px -8px var(--primary); animation: toastIn .3s cubic-bezier(.22,1,.36,1); text-align: left; }
+.toast.error { border-color: #ff3355; box-shadow: 0 8px 30px -8px #ff3355; }
+.toast.out { animation: toastOut .3s forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(.96); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(10px); } }
+
+/* ---- modal ---- */
+#modalOverlay { display: none; position: fixed; inset: 0; z-index: 9990; background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(6px); align-items: center; justify-content: center; padding: 20px; }
+#modalOverlay.show { display: flex; }
+.modal-box { background: var(--dark); border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  border-radius: var(--radius); padding: 24px 18px; width: min(92vw, 380px);
+  box-shadow: 0 20px 60px -20px var(--primary); animation: cardIn .3s cubic-bezier(.22,1,.36,1); }
+.modal-box h4 { font-family: 'Bebas Neue'; font-size: 22px; letter-spacing: 3px; color: #fff; margin: 0 0 6px; }
+.modal-box p { font-size: 13px; color: var(--highlight); text-transform: none; margin: 0 0 14px; }
+.modal-btns { display: flex; gap: 8px; margin-top: 6px; }
+.modal-btns .action-btn { width: 100%; margin-top: 0; font-size: 18px; padding: 11px; }
+.modal-btns .ghost { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--highlight); box-shadow: none; }
+
+/* ---- 7-day mana chart ---- */
+.spark { display: flex; align-items: flex-end; gap: 6px; height: 90px; margin: 10px 2% 18px; }
+.spark .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.spark .bar { width: 100%; background: linear-gradient(to top, var(--primary), color-mix(in srgb, var(--primary) 40%, #fff));
+  border-radius: 6px 6px 2px 2px; box-shadow: 0 0 10px -3px var(--primary); min-height: 3px;
+  transition: height .8s cubic-bezier(.22,1,.36,1); }
+.spark .bar-lbl { font-size: 9px; color: var(--highlight); letter-spacing: 1px; }
+
+/* ---- loading shimmer ---- */
+.syncing { position: relative; overflow: hidden; }
+.syncing::after { content: ''; position: absolute; inset: 0; z-index: 5;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--primary) 12%, transparent) 50%, transparent 70%);
+  background-size: 200% 100%; animation: shimmer 1.2s linear infinite; pointer-events: none; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+    </style>
+  </head>
+  <body>
+    <div id="scanlines"></div>
+    <div id="flashOverlay"></div>
+    <div id="prOverlay"><div id="prText">NEW RECORD</div></div>
+    <div id="toastWrap"></div>
+<div id="modalOverlay">
+  <div class="modal-box">
+    <h4 id="modalTitle"></h4>
+    <p id="modalBody"></p>
+    <input id="modalInput" style="display:none;">
+    <input id="modalInput2" style="display:none;">
+    <div class="modal-btns">
+      <button class="action-btn ghost" id="modalCancel">CANCEL</button>
+      <button class="action-btn" id="modalOk">CONFIRM</button>
+    </div>
+  </div>
+</div>
+    <div class="player-select-wrap">
+      <select id="playerSelect" class="player-select" onchange="initializeSystem()"></select>
+      <button class="reg-btn" onclick="openRegister()">+ NEW HUNTER</button>
+    </div>
+    
+
+    <div class="hero-banner">
+      <div class="hero-flare left"></div>
+      <div class="hero-flare right"></div>
+      <div class="hero-aura"></div>
+      <div class="hero-ring"></div>
+      <div class="hero-ring r2"></div>
+      <div class="hero-img"></div>
+      <div class="hero-vignette"></div>
+      <div class="hero-line"></div>
+      <h1 class="app-title glitch">ASCEND</h1>
+      <div class="app-sub">THE SYSTEM HAS CHOSEN YOU</div>
+    </div>
+
+    <div class="container">
+      <div class="stats-panel">
+        <p class="level-text">LEVEL <span id="lvlDisplay">--</span></p>
+        <p class="exp-text">MANA: <span id="expDisplay">0</span> / <span id="nextExpDisplay">0</span></p>
+        <div class="progress-container"><div class="progress-bar" id="expBar"></div></div>
+        <div class="streak-row">
+          <span class="streak-flame">🔥 <span id="streakDisplay">0</span> DAY STREAK</span>
+          <span style="color:var(--highlight);">⚔ <span id="daysDisplay">0</span> GATES CLEARED</span>
+        </div>
+        <div id="titlesRow" class="titles-row"></div>
+        <div id="rankDisplay" class="rank-badge" onclick="toggleRankInfo()">AWAKENING...</div>
+        <div id="rankInfoPanel" class="rank-info"></div>
+        <button class="trial-btn" onclick="resetTrial()">⟲ RESET ASCENSION TRIAL</button>
+      </div>
+
+      <div class="nav">
+        <button class="nav-btn active" onclick="switchTab('training', event)">COMBAT</button>
+        <button class="nav-btn" onclick="switchTab('quests', event)">QUESTS</button>
+        <button class="nav-btn" onclick="switchTab('archive', event)">DATA</button>
+        <button class="nav-btn" onclick="switchTab('leaderboard', event)">RANKS</button>
+        <button class="nav-btn" onclick="switchTab('profile', event)">VESSEL</button>
+        <button class="nav-btn" onclick="switchTab('admin', event)">ADMIN</button>
+      </div>
+
+      <div id="training" class="card active">
+        <label>SELECT TRAINING PHASE</label>
+        <select id="daySelect" onchange="loadExercises()">
+          <option value="">-- CHOOSE --</option>
+          <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+          <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+        </select>
+        <div id="workoutSection" style="display:none;">
+          <label>TARGET MANEUVER</label>
+          <select id="exerciseSelect"></select>
+          <label>SET NUMBER</label>
+          <input type="number" id="setNum" placeholder="e.g. 1">
+          <label>RESISTANCE (KG)</label>
+          <input type="number" id="weight">
+          <label>REPETITIONS</label>
+          <input type="number" id="reps">
+          <button class="action-btn" onclick="saveLog()">EXECUTE</button>
+          <p id="logStatus" style="color:var(--highlight); font-family:'Bebas Neue'; font-size:19px;"></p>
+        </div>
+      
+      </div>
+      <div id="quests" class="card">
+        <h3 class="section">DAILY QUEST LOG</h3>
+        <p style="font-size:12px; color:var(--highlight); margin-top:-10px; text-transform:none;">Complete all quests or
+face the penalty zone</p>
+        <div id="questContainer">LOADING...</div>
+        <h3 class="section" style="margin-top:25px;">RECORD VAULT — PERSONAL BESTS</h3>
+        <div id="prContainer"></div>
+      </div>
+
+      <div id="archive" class="card">
+        <h3 class="section">LAST 7 DAYS — GATE REPORT</h3>
+        <div class="stat-tiles">
+          <div class="tile"><div class="tile-num" id="wkSets">0</div><div class="tile-lbl">SETS</div></div>
+          <div class="tile"><div class="tile-num" id="wkMana">0</div><div class="tile-lbl">MANA</div></div>
+          <div class="tile"><div class="tile-num" id="wkDays">0</div><div class="tile-lbl">ACTIVE DAYS</div></div>
+        </div>
+        <h3 class="section">RECENT COMBAT LOGS</h3>
+        <div id="logContainer"></div>
+      </div>
+
+      <div id="leaderboard" class="card">
+        <h3 class="section">GLOBAL RANKINGS</h3>
+        <button class="action-btn" style="font-size: 17px; padding: 10px;" onclick="loadLeaderboard()">REFRESH</button>
+        <div id="lbContainer" style="margin-top: 15px;"></div>
+      </div>
+
+      <div id="profile" class="card">
+
+        <!-- Locked view: shown for ANY profile until the correct password is entered -->
+        <div id="profileLockScreen" class="lock-screen">
+          <div class="lock-icon">🔒</div>
+          <h4 id="lockTitle">VESSEL SEALED</h4>
+          <p id="lockSubtitle">Enter the password for this hunter to view or edit their profile.</p>
+          <input type="password" id="passwordInput" placeholder="Password">
+          <button class="action-btn" style="font-size:17px; padding:11px;" onclick="unlockProfile()">UNLOCK</button>
+        </div>
+
+        <!-- First-time claim: shown only when this profile has never had a password set -->
+        <div id="claimScreen" class="lock-screen" style="display:none;">
+          <div class="lock-icon">🆕</div>
+          <h4>CLAIM THIS VESSEL</h4>
+          <p>No password has been set yet. Set one now to seal this profile so nobody else can view or edit it.</p>
+          <input type="password" id="claimPasswordInput" placeholder="Create a password (min 4 characters)">
+          <button class="action-btn" style="font-size:17px; padding:11px;" onclick="claimProfile()">SET PASSWORD &
+UNLOCK</button>
+        </div>
+
+        <!-- Unlocked view: full profile, only visible after a successful password check -->
+        <div id="profileUnlocked" style="display:none;">
+          <label>CURRENT MASS (KG)</label>
+          <input type="number" step="0.1" id="currentWeight">
+          <label>HEIGHT (CM)</label>
+          <input type="number" id="height">
+          <label>TARGET MASS (KG)</label>
+          <input type="number" step="0.1" id="goalWeight">
+          <button class="action-btn" onclick="updateProfile()">SYNC STATS</button>
+          <p id="profileStatus" style="color:var(--highlight); font-family:'Bebas Neue'; font-size:19px;"></p>
+
+          <label style="margin-top:20px;">HUNTER DESIGNATION (RENAME)</label>
+          <input type="text" id="newName" placeholder="New name">
+          <button class="action-btn" style="font-size:19px; padding:12px;" onclick="renameMe()">REWRITE IDENTITY</button>
+
+          <label style="margin-top:20px;">CHANGE PASSWORD</label>
+          <input type="password" id="currentPasswordInput" placeholder="Current password">
+          <input type="password" id="newPasswordInput" placeholder="New password (min 4 characters)">
+          <button class="action-btn" style="font-size:17px; padding:11px;" onclick="changePassword()">UPDATE
+PASSWORD</button>
+
+          <button class="trial-btn" style="margin-top:18px;" onclick="lockProfile()">🔒 LOCK VESSEL AGAIN</button>
+        </div>
+      </div>
+
+      <div id="admin" class="card">
+        <h3 class="section">SYSTEM OVERRIDE</h3>
+      <div id="archive">
+       <div class="spark" id="sparkChart"></div>
+        <label>ADD NEW PLAYER</label>
+        <input type="text" id="newPlayerName" placeholder="Name">
+        <input type="password" id="newPlayerPassword" placeholder="Starting password (min 4 characters)">
+        <button class="action-btn" onclick="adminAdd()">ADD PLAYER</button>
+
+        <label>INJECT MANA MATRIX BLOCKS</label>
+        <input type="number" id="bonusExp" placeholder="MANA Quantity">
+        <button class="action-btn" onclick="adminExp()">GIVE MANA</button>
+
+        <label style="color:#ff3333; margin-top:20px;">DANGER: SELECT PLAYER TO PURGE</label>
+        <select id="resetPlayerSelect"></select>
+        <button class="action-btn" style="background:#2a2a2e; color:#ff3333; box-shadow:none;" 
+onclick="adminReset()">WIPE ALL DATA</button>
+        <p id="adminStatus" style="color:#fff; font-family:'Bebas Neue'; font-size:19px;"></p>
+      </div>
+    </div>
+
+    <script>
+  /* ============ CONFIG — PUT YOUR OWN VALUES HERE ============ */
+  const SUPABASE_URL = 'http://psqnpecwjfqqhazttfkt.supabase.co/';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcW5wZWN3amZxcWhhenR0Zmt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxODE5NzcsImV4cCI6MjA5OTc1Nzk3N30.irrHe0BggrLlmdJU-3ySXSUmikcYuqzEJMS24f4G3gI';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  /* ============ GAME CONSTANTS (moved from code.gs) ============ */
+  const SPECIAL_LOGS = ['mana_boost', 'system_penalty', 'rank_reset'];
+  const RANKS = [
+    { name: 'SOLDIER',       req: 0   }, { name: 'KING',   req: 3.0 },
+    { name: 'DEMI-HUMAN',    req: 4.5 }, { name: 'DEMON',  req: 5.5 },
+    { name: 'DEVIL',         req: 6.5 }, { name: 'GOD',    req: 8.0 },
+    { name: 'ONE ABOVE ALL', req: 9.5 }
+  ];
+  const TITLES = [
+    { name: 'THE AWAKENED',         check: s => s.totalSets >= 1 },
+    { name: 'DUNGEON REGULAR',      check: s => s.workoutDays >= 10 },
+    { name: 'SHADOW OF DISCIPLINE', check: s => s.streak >= 7 },
+    { name: 'MONARCH OF IRON',      check: s => s.total1RM >= 400 },
+    { name: 'MANA OVERFLOW',        check: s => s.exp >= 100000 },
+    { name: 'ARISE',                check: s => s.level >= 25 }
+  ];
+  const rankThemes = {
+    "SOLDIER": { primary: "#ff3333", dark: "#1c1c22", bg: "#101014", highlight: "#aaaaaa", badgeText: "#ffffff" },
+    "KING": { primary: "#ffd700", dark: "#1a1705", bg: "#0d0c02", highlight: "#ffae42", badgeText: "#000000" },
+    "DEMI-HUMAN": { primary: "#d2691e", dark: "#241407", bg: "#140a04", highlight: "#c98a4b", badgeText: "#ffffff" },
+    "DEMON": { primary: "#9400D3", dark: "#150324", bg: "#090012", highlight: "#b05bff", badgeText: "#ffffff" },
+    "DEVIL": { primary: "#ff0055", dark: "#24030e", bg: "#150007", highlight: "#ff3377", badgeText: "#ffffff" },
+    "GOD": { primary: "#00e5ff", dark: "#03181a", bg: "#000d0d", highlight: "#66ffff", badgeText: "#000000" },
+    "ONE ABOVE ALL": { primary: "#ffffff", dark: "#141418", bg: "#000000", highlight: "#dddddd", badgeText: "#000000" }
+  };
+
+  /* ============ STATE ============ */
+  let playersCache = [];      // [{id, name, claimed}]
+  let currentLogs = [];       // selected player's logs, ordered by id
+  let profileCache = null;    // last get_profile result for selected player
+  let rankDataCache = null, previousRank = "";
+  let playerPasswords = {};   // in-memory only — every reload starts locked
+
+  const $ = id => document.getElementById(id);
+  const playerByName = n => playersCache.find(p => p.name === n);
+  const currentPlayer = () => $('playerSelect').value;
+  const isSpecial = ex => SPECIAL_LOGS.includes((ex || '').toString().toLowerCase().trim());
+  const epley = (w, r) => Math.round((r > 1 ? w * (1 + r / 30) : w) * 10) / 10;
+
+  /* ============ TOASTS & MODALS (replace alert/prompt/confirm) ============ */
+  function toast(msg, type) {
+    const t = document.createElement('div');
+    t.className = 'toast' + (type === 'error' ? ' error' : '');
+    t.textContent = msg;
+    $('toastWrap').appendChild(t);
+    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 350); }, 3200);
+  }
+
+  function modal({ title, body, input, input2, okText }) {
+    return new Promise(resolve => {
+      $('modalTitle').textContent = title || '';
+      $('modalBody').textContent = body || '';
+      const i1 = $('modalInput'), i2 = $('modalInput2');
+      i1.style.display = input ? 'block' : 'none';
+      i2.style.display = input2 ? 'block' : 'none';
+      if (input)  { i1.value = ''; i1.type = input.password ? 'password' : 'text'; i1.placeholder = input.placeholder || ''; }
+      if (input2) { i2.value = ''; i2.type = input2.password ? 'password' : 'text'; i2.placeholder = input2.placeholder || ''; }
+      $('modalOk').textContent = okText || 'CONFIRM';
+      $('modalOverlay').classList.add('show');
+      if (input) setTimeout(() => i1.focus(), 50);
+      const done = val => { $('modalOverlay').classList.remove('show'); $('modalOk').onclick = $('modalCancel').onclick = null; resolve(val); };
+      $('modalOk').onclick = () => done(input ? { v1: i1.value, v2: i2.value } : true);
+      $('modalCancel').onclick = () => done(null);
+    });
+  }
+  const uiConfirm = (title, body) => modal({ title, body });
+
+  function setSyncing(on) {
+    document.querySelectorAll('.stats-panel, .card.active').forEach(el => el.classList.toggle('syncing', on));
+  }
+
+  /* ============ STATS ENGINE (ported from code.gs computeStats_) ============ */
+  function computeStats(logs) {
+    let lastReset = -1;
+    logs.forEach((l, i) => { if ((l.exercise || '').toLowerCase().trim() === 'rank_reset') lastReset = i; });
+
+    const maxes = {}, days = {}, exerciseCounts = {};
+    let totalMana = 0, totalSets = 0;
+
+    logs.forEach((l, idx) => {
+      const ex = (l.exercise || '').toString().toLowerCase().trim();
+      if (!ex) return;
+      const w = parseFloat(l.weight) || 0, r = parseInt(l.reps, 10) || 0, orm = parseFloat(l.orm) || 0;
+      totalMana += w * r;
+      if (!isSpecial(ex)) {
+        totalSets++;
+        days[new Date(l.date).toDateString()] = true;
+        exerciseCounts[ex] = (exerciseCounts[ex] || 0) + 1;
+        if (idx > lastReset && (!maxes[ex] || orm > maxes[ex])) maxes[ex] = orm;
+      }
+    });
+    if (totalMana < 0) totalMana = 0;
+
+    const level = Math.floor(Math.pow(totalMana / 150, 0.38)) + 1;
+    const floor = Math.pow(level - 1, 2.63) * 150;
+    const ceil = Math.pow(level, 2.63) * 150;
+    const total1RM = (maxes['squat'] || 0) + (maxes['bench press'] || 0) + (maxes['conventional deadlift'] || 0);
+
+    let streak = 0;
+    const d = new Date();
+    if (!days[d.toDateString()]) d.setDate(d.getDate() - 1); // grace day
+    while (days[d.toDateString()]) { streak++; d.setDate(d.getDate() - 1); }
+
+    const favorite = Object.keys(exerciseCounts).sort((a, b) => exerciseCounts[b] - exerciseCounts[a])[0] || '—';
+
+    return { exp: totalMana, level, expFloor: floor, expCeil: ceil,
+             percent: Math.round(((totalMana - floor) / (ceil - floor)) * 100),
+             maxes, total1RM: Math.round(total1RM), totalSets,
+             workoutDays: Object.keys(days).length, streak, favoriteExercise: favorite };
+  }
+
+  function rankFor(rss) {
+    let cur = RANKS[0], next = RANKS[1];
+    for (let i = RANKS.length - 1; i >= 0; i--) {
+      if (rss >= RANKS[i].req) { cur = RANKS[i]; next = RANKS[i + 1] || RANKS[i]; break; }
+    }
+    return { cur, next };
+  }
+
+  /* ============ THEME / FX (unchanged) ============ */
+  function applyTheme(rank) {
+    const t = rankThemes[rank] || rankThemes["SOLDIER"];
+    const r = document.documentElement.style;
+    r.setProperty('--primary', t.primary); r.setProperty('--dark', t.dark);
+    r.setProperty('--bg', t.bg); r.setProperty('--highlight', t.highlight);
+    r.setProperty('--badge-text', t.badgeText);
+  }
+  function spawnParticle() {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.setProperty('--drift', (Math.random() * 120 - 60) + 'px');
+    p.style.animationDuration = (5 + Math.random() * 7) + 's';
+    p.style.opacity = 0.3 + Math.random() * 0.5;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 13000);
+  }
+  setInterval(spawnParticle, 800);
+
+  function countUp(el, target) {
+    target = Math.floor(target);
+    const start = parseInt(el.innerText.replace(/\D/g, '')) || 0;
+    if (start === target) { el.innerText = target; return; }
+    let i = 0; const steps = 30;
+    const timer = setInterval(() => {
+      i++;
+      el.innerText = Math.round(start + (target - start) * (i / steps));
+      if (i >= steps) clearInterval(timer);
+    }, 20);
+  }
+  function triggerLimitBreak(newRank) {
+    const o = $('flashOverlay');
+    o.style.display = "block"; o.classList.add('flicker');
+    document.body.classList.add('shake');
+    setTimeout(() => {
+      o.style.display = "none"; o.classList.remove('flicker');
+      document.body.classList.remove('shake');
+      toast("⚡ LIMIT BROKEN! UNLOCKED RANK: " + newRank);
+    }, 1500);
+  }
+  function triggerPRFlash(msg) {
+    const o = $('prOverlay');
+    $('prText').innerText = msg;
+    o.style.display = 'flex';
+    document.body.classList.add('shake');
+    setTimeout(() => { o.style.display = 'none'; document.body.classList.remove('shake'); }, 2000);
+  }
+
+  /* ============ BOOT / PLAYERS ============ */
+  async function loadPlayers() {
+    const { data, error } = await db.from('players_public').select('*').order('name');
+    if (error) { toast('SYSTEM ERROR: ' + error.message, 'error'); return; }
+    playersCache = data || [];
+    const select = $('playerSelect'), resetSelect = $('resetPlayerSelect');
+    const remembered = select.value || localStorage.getItem('ascend_player');
+    select.innerHTML = ''; resetSelect.innerHTML = '';
+    playersCache.forEach(p => {
+      select.appendChild(new Option(p.name, p.name));
+      resetSelect.appendChild(new Option(p.name, p.name));
+    });
+    if (playersCache.some(p => p.name === remembered)) select.value = remembered;
+    initializeSystem();
+  }
+
+  async function initializeSystem() {
+    const player = currentPlayer();
+    if (!player) return;
+    localStorage.setItem('ascend_player', player);
+    const rec = playerByName(player);
+    if (!rec) return;
+    setSyncing(true);
+    try {
+      const { data: logs, error } = await db.from('logs').select('*').eq('player_id', rec.id).order('id');
+      if (error) throw error;
+      currentLogs = logs || [];
+      await loadProfile(player);
+      await loadStatus(player);
+      renderLogs(); renderQuests(); renderWeekly(); renderPRs();
+    } catch (e) {
+      toast('SYSTEM ERROR: ' + (e.message || e), 'error');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  /* ============ REGISTRATION ============ */
+  async function openRegister() {
+    const res = await modal({
+      title: 'NEW HUNTER', body: 'Choose a name and a password (min 4 characters). The password keeps your Vessel private.',
+      input: { placeholder: 'Hunter name' }, input2: { placeholder: 'Password', password: true }, okText: 'AWAKEN'
+    });
+    if (!res) return;
+    const name = (res.v1 || '').trim(), password = res.v2 || '';
+    if (!name) return toast('NAME REQUIRED', 'error');
+    if (password.length < 4) return toast('PASSWORD MUST BE AT LEAST 4 CHARACTERS', 'error');
+    const { data, error } = await db.rpc('register_player', { p_name: name, p_password: password });
+    if (error) return toast(error.message, 'error');
+    toast(data.msg, data.ok ? '' : 'error');
+    if (data.ok) {
+      playerPasswords[name] = password;
+      await loadPlayers();
+      $('playerSelect').value = name;
+      initializeSystem();
+    }
+  }
+
+  /* ============ STATUS / RANK ============ */
+  async function loadStatus(player) {
+    const s = computeStats(currentLogs);
+    const { data: rssVal } = await db.rpc('get_rss', { p_name: player });
+    const rss = Number(rssVal) || 0;
+    const { cur, next } = rankFor(rss);
+    const verified = !!playerPasswords[player] && profileCache && !profileCache.locked;
+
+    rankDataCache = {
+      rank: cur.name, level: s.level, exp: s.exp, nextExp: s.expCeil, percent: s.percent,
+      rss: rss.toFixed(2), nextRankName: next.name, nextRankReq: next.req,
+      total1RM: s.total1RM,
+      bw: verified ? (parseFloat(profileCache.weight) || 0) : null,
+      locked: !verified,
+      streak: s.streak, workoutDays: s.workoutDays, totalSets: s.totalSets,
+      favoriteExercise: s.favoriteExercise.toUpperCase(),
+      titles: TITLES.filter(t => t.check(s)).map(t => t.name)
+    };
+
+    applyTheme(cur.name);
+    if (previousRank !== "" && previousRank !== cur.name) triggerLimitBreak(cur.name);
+    previousRank = cur.name;
+
+    countUp($('lvlDisplay'), s.level);
+    countUp($('expDisplay'), s.exp);
+    $('nextExpDisplay').innerText = Math.floor(s.expCeil);
+    $('expBar').style.width = s.percent + "%";
+    $('rankDisplay').innerText = cur.name;
+    $('streakDisplay').innerText = s.streak;
+    $('daysDisplay').innerText = s.workoutDays;
+
+    const titles = $('titlesRow');
+    titles.innerHTML = '';
+    rankDataCache.titles.forEach(t => {
+      const b = document.createElement('span');
+      b.className = 'title-badge'; b.innerText = '★ ' + t;
+      titles.appendChild(b);
+    });
+  }
+
+  function toggleRankInfo() {
+    const panel = $('rankInfoPanel');
+    if (panel.style.display === 'block') { panel.style.display = 'none'; return; }
+    if (!rankDataCache) return;
+    if (rankDataCache.locked) {
+      panel.innerHTML = "🔒 VESSEL DATA SEALED. UNLOCK WITH THE PASSWORD IN THE VESSEL TAB TO VIEW THE FULL STATUS BREAKDOWN.";
+    } else if (!rankDataCache.bw) {
+      panel.innerHTML = "UPDATE BASE MASS WITHIN VESSEL PROFILE FIRST.";
+    } else if (rankDataCache.rank === "ONE ABOVE ALL") {
+      panel.innerHTML = "MAXIMUM POWER CAPACITY SECURED.";
+    } else {
+      const nextTargetTotal = Math.round(rankDataCache.nextRankReq * rankDataCache.bw);
+      panel.innerHTML = `
+        <b>CURRENT VESSEL STATUS:</b><br>
+        • BODY WEIGHT: ${rankDataCache.bw} KG<br>
+        • CURRENT BIG 3 TOTAL: ${rankDataCache.total1RM} KG<br>
+        • CURRENT STRENGTH SCORE: ${rankDataCache.rss}x BW<br>
+        • FAVORITE MANEUVER: ${rankDataCache.favoriteExercise}<br><br>
+        <b>NEXT RANK BREAKTHROUGH:</b><br>
+        • TARGET RANK: <b>${rankDataCache.nextRankName}</b><br>
+        • REQUIREMENT: CROSS A TOTAL OF <b>${nextTargetTotal} KG</b> RUNNING TOTAL ON SQUAT, BENCH, AND DEADLIFT.<br>
+        • GAP TO UNLOCK: ADD <b>${nextTargetTotal - rankDataCache.total1RM} KG</b> TO YOUR LIFTS TO ASCEND.`;
+    }
+    panel.style.display = 'block';
+  }
+
+  /* ============ PROFILE (password-gated via RPC) ============ */
+  async function loadProfile(player) {
+    const { data, error } = await db.rpc('get_profile', { p_name: player, p_password: playerPasswords[player] || '' });
+    if (error) { toast(error.message, 'error'); return; }
+    profileCache = data;
+    renderProfile(data);
+  }
+
+  function renderProfile(data) {
+    const lockScreen = $('profileLockScreen'), claimScreen = $('claimScreen'), unlocked = $('profileUnlocked');
+    if (data.locked) {
+      unlocked.style.display = 'none';
+      if (data.claimed) {
+        lockScreen.style.display = 'block'; claimScreen.style.display = 'none';
+        $('passwordInput').value = '';
+      } else {
+        lockScreen.style.display = 'none'; claimScreen.style.display = 'block';
+        $('claimPasswordInput').value = '';
+      }
+      return;
+    }
+    lockScreen.style.display = 'none'; claimScreen.style.display = 'none';
+    unlocked.style.display = 'block';
+    $('currentWeight').value = data.weight || '';
+    $('height').value = data.height || '';
+    $('goalWeight').value = data.goal || '';
+  }
+
+  async function unlockProfile() {
+    const player = currentPlayer(), password = $('passwordInput').value;
+    if (!password) return toast('ENTER A PASSWORD', 'error');
+    const { data: ok, error } = await db.rpc('verify_password', { p_name: player, p_password: password });
+    if (error) return toast(error.message, 'error');
+    if (!ok) return toast('INCORRECT PASSWORD', 'error');
+    playerPasswords[player] = password;
+    await loadProfile(player);
+    await loadStatus(player);
+    toast('VESSEL UNSEALED');
+  }
+
+  async function claimProfile() {
+    const player = currentPlayer(), password = $('claimPasswordInput').value;
+    if (password.length < 4) return toast('PASSWORD MUST BE AT LEAST 4 CHARACTERS', 'error');
+    const { data, error } = await db.rpc('set_password', { p_name: player, p_new: password, p_old: '' });
+    if (error) return toast(error.message, 'error');
+    toast(data.msg, data.ok ? '' : 'error');
+    if (data.ok) {
+      playerPasswords[player] = password;
+      await loadProfile(player);
+      await loadStatus(player);
+    }
+  }
+
+  function lockProfile() {
+    const player = currentPlayer();
+    delete playerPasswords[player];
+    loadProfile(player); loadStatus(player);
+    toast('🔒 VESSEL SEALED');
+  }
+
+  async function changePassword() {
+    const player = currentPlayer();
+    const oldPassword = $('currentPasswordInput').value, newPassword = $('newPasswordInput').value;
+    const { data, error } = await db.rpc('set_password', { p_name: player, p_new: newPassword, p_old: oldPassword });
+    if (error) return toast(error.message, 'error');
+    $('profileStatus').innerText = data.msg;
+    if (data.ok) {
+      playerPasswords[player] = newPassword;
+      $('currentPasswordInput').value = ''; $('newPasswordInput').value = '';
+    }
+  }
+
+  async function updateProfile() {
+    const player = currentPlayer();
+    const w = $('currentWeight').value, h = $('height').value, gw = $('goalWeight').value;
+    if (!w || !h || !gw) return;
+    $('profileStatus').innerText = "WRITING PROTOCOL...";
+    const { data, error } = await db.rpc('save_profile', {
+      p_name: player, p_password: playerPasswords[player] || '',
+      p_weight: parseFloat(w), p_height: parseFloat(h), p_goal: parseFloat(gw)
+    });
+    if (error) return toast(error.message, 'error');
+    $('profileStatus').innerText = data.msg;
+    initializeSystem();
+  }
+
+  async function renameMe() {
+    const oldName = currentPlayer(), newName = $('newName').value.trim();
+    if (!newName) return;
+    const ok = await uiConfirm('REWRITE IDENTITY?', oldName + ' → ' + newName + ' — all logs, records and rank carry over.');
+    if (!ok) return;
+    const password = playerPasswords[oldName] || '';
+    $('profileStatus').innerText = "REWRITING IDENTITY...";
+    const { data, error } = await db.rpc('rename_player', { p_old: oldName, p_new: newName, p_password: password });
+    if (error) return toast(error.message, 'error');
+    $('profileStatus').innerText = data.msg;
+    if (data.ok) {
+      playerPasswords[newName] = password;
+      delete playerPasswords[oldName];
+      $('newName').value = '';
+      await loadPlayers();
+      $('playerSelect').value = newName;
+      initializeSystem();
+    }
+  }
+
+  /* ============ TRAINING ============ */
+  async function loadExercises() {
+    const day = $('daySelect').value;
+    if (!day) return;
+    $('logStatus').innerText = "FETCHING ROTATION...";
+    const { data, error } = await db.from('routines').select('exercises').ilike('day', day).maybeSingle();
+    if (error) return toast(error.message, 'error');
+    const select = $('exerciseSelect');
+    select.innerHTML = '';
+    ((data && data.exercises) || []).forEach(ex => select.appendChild(new Option(ex, ex)));
+    $('workoutSection').style.display = 'block';
+    $('logStatus').innerText = "";
+  }
+
+  async function saveLog() {
+    const player = currentPlayer(), rec = playerByName(player);
+    const e = $('exerciseSelect').value, s = parseInt($('setNum').value, 10) || 1;
+    const w = parseFloat($('weight').value), r = parseInt($('reps').value, 10);
+    if (!w || !r) { $('logStatus').innerText = "ERROR: ENTER WEIGHT & REPS"; return; }
+
+    const orm = epley(w, r);
+    const prevBest = computeStats(currentLogs).maxes[e.toLowerCase().trim()] || 0;
+    const isPR = orm > prevBest && prevBest > 0;
+
+    $('logStatus').innerText = "ABSORBING MANA...";
+    const { error } = await db.from('logs').insert({
+      player_id: rec.id, exercise: e, set_num: s, weight: w, reps: r, orm: orm
+    });
+    if (error) { $('logStatus').innerText = "ERROR"; return toast(error.message, 'error'); }
+
+    $('logStatus').innerText = isPR
+      ? '⚡ NEW RECORD! LIMITER BROKEN ON ' + e.toUpperCase() + ' (' + orm + ')'
+      : 'MANA ABSORBED: +' + (w * r);
+    if (isPR) triggerPRFlash("⚡ LIMITER BROKEN ⚡");
+    $('setNum').value = s + 1;
+    $('weight').value = ''; $('reps').value = '';
+    initializeSystem();
+  }
+
+  async function resetTrial() {
+    const ok = await uiConfirm('RESET ASCENSION TRIAL?',
+      'Your rank returns to SOLDIER and your Big 3 records are sealed away. Your MANA, LEVEL and history are NOT touched. Prove yourself again.');
+    if (!ok) return;
+    const rec = playerByName(currentPlayer());
+    const { error } = await db.from('logs').insert({ player_id: rec.id, exercise: 'RANK_RESET', set_num: 0, weight: 0, reps: 0, orm: 0 });
+    if (error) return toast(error.message, 'error');
+    previousRank = ""; // don't fire the rank-up flash on the way DOWN
+    toast('ASCENSION TRIAL RESET. PROVE YOURSELF AGAIN.');
+    initializeSystem();
+  }
+
+  /* ============ LOGS / QUESTS / WEEKLY / PRs (client-side from currentLogs) ============ */
+  function renderLogs() {
+    const container = $('logContainer');
+    const logs = currentLogs.filter(l => l.exercise && !isSpecial(l.exercise)).slice(-20).reverse();
+    container.innerHTML = '';
+    if (!logs.length) { container.innerHTML = '<p style="color:#666; padding:10px;">NO RECORDED DATA FOUND IN THE SYSTEM</p>'; return; }
+    logs.forEach(log => {
+      const d = new Date(log.date);
+      const dateStr = isNaN(d.getTime()) ? '—' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.innerHTML = `
+        <div>
+          <div class="log-ex">${log.exercise.toUpperCase()}</div>
+          <div class="log-stats">SET ${log.set_num} &nbsp;|&nbsp; ${log.weight}KG × ${log.reps} &nbsp;|&nbsp; Est. 1RM: ${log.orm}KG</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="color:#777; font-size:12px; font-weight:bold;">${dateStr}</div>
+          <button class="del-btn">✖</button>
+        </div>`;
+      div.querySelector('.del-btn').onclick = () => removeLog(log);
+      container.appendChild(div);
+    });
+  }
+
+  async function removeLog(log) {
+    const ok = await uiConfirm('ERASE THIS RECORD?', log.exercise.toUpperCase() + ' ' + log.weight + 'KG × ' + log.reps);
+    if (!ok) return;
+    const { error } = await db.from('logs').delete().eq('id', log.id); // stable id — no row-shift bug
+    if (error) return toast(error.message, 'error');
+    toast('RECORD ERASED FROM THE SYSTEM');
+    initializeSystem();
+  }
+
+  function renderQuests() {
+    const tKey = new Date().toDateString();
+    let sets = 0, mana = 0; const exercises = {};
+    currentLogs.forEach(l => {
+      if (new Date(l.date).toDateString() === tKey && !isSpecial(l.exercise)) {
+        sets++;
+        mana += (parseFloat(l.weight) || 0) * (parseInt(l.reps, 10) || 0);
+        exercises[l.exercise.toLowerCase()] = true;
+      }
+    });
+    const exCount = Object.keys(exercises).length;
+    const quests = [
+      { name: 'ENTER THE GATE',    desc: 'Log 1 set today',           done: sets >= 1,    progress: Math.min(sets, 1) + '/1' },
+      { name: 'CLEAR THE DUNGEON', desc: 'Complete 12 sets',          done: sets >= 12,   progress: Math.min(sets, 12) + '/12' },
+      { name: 'MANA HARVEST',      desc: 'Absorb 3000 mana',          done: mana >= 3000, progress: Math.min(Math.round(mana), 3000) + '/3000' },
+      { name: 'FULL SWEEP',        desc: 'Hit 4 different exercises', done: exCount >= 4, progress: Math.min(exCount, 4) + '/4' }
+    ];
+    $('questContainer').innerHTML = quests.map(q => `
+      <div class="quest ${q.done ? 'done' : ''}">
+        <div><div class="quest-name">${q.name}</div><div class="quest-desc">${q.desc} — ${q.progress}</div></div>
+        <div class="quest-check">${q.done ? '✔ CLEARED' : '···'}</div>
+      </div>`).join('');
+  }
+
+  function renderWeekly() {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0, 0, 0, 0);
+    let sets = 0, mana = 0; const days = {}, perDay = {};
+    currentLogs.forEach(l => {
+      if (isSpecial(l.exercise)) return;
+      const d = new Date(l.date);
+      if (isNaN(d.getTime()) || d < cutoff) return;
+      sets++;
+      const m = (parseFloat(l.weight) || 0) * (parseInt(l.reps, 10) || 0);
+      mana += m;
+      days[d.toDateString()] = true;
+      perDay[d.toDateString()] = (perDay[d.toDateString()] || 0) + m;
+    });
+    countUp($('wkSets'), sets);
+    countUp($('wkMana'), Math.round(mana));
+    countUp($('wkDays'), Object.keys(days).length);
+
+    // 7-day mana bar chart
+    const spark = $('sparkChart');
+    if (spark) {
+      const bars = [];
+      let max = 1;
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const v = perDay[d.toDateString()] || 0;
+        max = Math.max(max, v);
+        bars.push({ v, lbl: d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase() });
+      }
+      spark.innerHTML = bars.map(b => `
+        <div class="bar-wrap">
+          <div class="bar" style="height:${Math.max(3, Math.round(b.v / max * 100))}%" title="${Math.round(b.v)} MANA"></div>
+          <div class="bar-lbl">${b.lbl}</div>
+        </div>`).join('');
+    }
+  }
+
+  function renderPRs() {
+    const maxes = computeStats(currentLogs).maxes;
+    const prs = Object.keys(maxes)
+      .map(ex => ({ exercise: ex.toUpperCase(), orm: maxes[ex] }))
+      .sort((a, b) => b.orm - a.orm);
+    $('prContainer').innerHTML = prs.length
+      ? prs.map(p => `<div class="pr-entry"><span>${p.exercise}</span><span>${p.orm} KG</span></div>`).join('')
+      : '<p style="color:#666;">NO RECORDS YET. FORGE ONE.</p>';
+  }
+
+  /* ============ LEADERBOARD ============ */
+  async function loadLeaderboard() {
+    $('lbContainer').innerHTML = "SYNCING NETWORK...";
+    const [pRes, lRes, rRes] = await Promise.all([
+      db.from('players_public').select('*'),
+      db.from('logs').select('*').order('id'),
+      db.rpc('get_all_rss')
+    ]);
+    if (pRes.error || lRes.error) { $('lbContainer').innerHTML = "SYNC FAILED"; return; }
+    const rssMap = {};
+    (rRes.data || []).forEach(r => rssMap[r.name] = Number(r.rss) || 0);
+    const byId = {};
+    (lRes.data || []).forEach(l => (byId[l.player_id] = byId[l.player_id] || []).push(l));
+
+    const board = (pRes.data || []).map(p => {
+      const s = computeStats(byId[p.id] || []);
+      return { name: p.name, level: s.level, exp: s.exp, streak: s.streak, rank: rankFor(rssMap[p.name] || 0).cur.name };
+    }).sort((a, b) => b.exp - a.exp);
+
+    $('lbContainer').innerHTML = board.map((d, index) => {
+      const t = rankThemes[d.rank] || rankThemes["SOLDIER"];
+      const crown = index === 0 ? '👑 ' : '';
+      const flame = d.streak > 0 ? ` 🔥${d.streak}` : '';
+      return `<div class="lb-entry" style="color:${t.primary}; border-color:${t.primary};">
+                <div>#${index + 1} ${crown}${d.name}${flame}</div>
+                <div style="text-align:right;">LVL ${d.level} | ${d.rank}<br>
+                  <span style="font-size:14px; color:${t.highlight};">MANA CAPACITY: ${Math.floor(d.exp)}</span></div>
+              </div>`;
+    }).join('');
+  }
+
+  /* ============ ADMIN ============ */
+  async function adminAdd() {
+    const n = $('newPlayerName').value, pw = $('newPlayerPassword').value;
+    if (!n) return;
+    if (pw.length < 4) return toast("STARTING PASSWORD MUST BE AT LEAST 4 CHARACTERS", 'error');
+    const { data, error } = await db.rpc('register_player', { p_name: n, p_password: pw });
+    if (error) return toast(error.message, 'error');
+    $('adminStatus').innerText = data.msg;
+    $('newPlayerName').value = ''; $('newPlayerPassword').value = '';
+    loadPlayers();
+  }
+
+  async function adminExp() {
+    const rec = playerByName(currentPlayer());
+    const a = parseFloat($('bonusExp').value);
+    if (!a || !rec) return;
+    const { error } = await db.from('logs').insert({ player_id: rec.id, exercise: 'MANA_BOOST', set_num: 1, weight: a, reps: 1, orm: 0 });
+    if (error) return toast(error.message, 'error');
+    $('adminStatus').innerText = 'INJECTED ' + a + ' MANA INTO ' + rec.name;
+    $('bonusExp').value = '';
+    initializeSystem();
+  }
+
+  async function adminReset() {
+    const name = $('resetPlayerSelect').value;
+    const rec = playerByName(name);
+    if (!rec) return;
+    const ok = await uiConfirm('WARNING', 'PERMANENTLY WIPE ALL PROTOCOLS FOR ' + name + '?');
+    if (!ok) return;
+    $('adminStatus').innerText = "PURGING CORE DATA...";
+    const { error } = await db.from('logs').delete().eq('player_id', rec.id);
+    if (error) return toast(error.message, 'error');
+    $('adminStatus').innerText = 'SYSTEM MATRIX CLEANSED FOR ' + name;
+    initializeSystem();
+  }
+
+  /* ============ NAV ============ */
+  async function switchTab(t, ev) {
+    if (t === 'admin') {
+      const res = await modal({ title: 'SYSTEM OVERRIDE', body: 'Enter admin passcode.', input: { placeholder: 'Passcode', password: true }, okText: 'OVERRIDE' });
+      if (!res || res.v1 !== "9411") { if (res) toast("ACCESS DENIED.", 'error'); return; }
+    }
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    $(t).classList.add('active');
+    (ev || event).target.classList.add('active');
+    if (t === 'leaderboard') loadLeaderboard();
+    if (t === 'profile') loadProfile(currentPlayer());
+  }
+
+  window.onload = loadPlayers;
+</script>
+
+  </body>
+</html>
