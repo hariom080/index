@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASCEND</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+   <script>
+(function(){
+  var EZZ = {
+    app: "ASCEND",                    // same name as in ezz
+    endpoint: "https://script.google.com/macros/s/AKfycbziPmN2F5rhes-aBwgTWPuOq8hu9F_2ql6a2ioRVRXtvl5Eatr5lowB1Ubnio38SV8/exec",
+    ping: function(ev){
+      var u = localStorage.ezz_uid || (localStorage.ezz_uid =
+              Math.random().toString(36).slice(2));
+      new Image().src = this.endpoint + "?app=" + encodeURIComponent(this.app)
+        + "&event=" + ev + "&user=" + u + "&t=" + Date.now();
+    }
+  };
+  if(!localStorage.ezz_installed){ localStorage.ezz_installed = 1; EZZ.ping("install"); }
+  EZZ.ping("launch");
+  window.EZZ = EZZ;
+})();
+</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
       :root {
