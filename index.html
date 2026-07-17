@@ -8,7 +8,7 @@
    <script>
 (function(){
   var EZZ = {
-    app: "ASCEND",                    // same name as in ezz
+    app: "MY-APP-NAME",                    // same name as in ezz
     endpoint: "https://script.google.com/macros/s/AKfycbziPmN2F5rhes-aBwgTWPuOq8hu9F_2ql6a2ioRVRXtvl5Eatr5lowB1Ubnio38SV8/exec",
     ping: function(ev){
       var u = localStorage.ezz_uid || (localStorage.ezz_uid =
@@ -19,6 +19,29 @@
   };
   if(!localStorage.ezz_installed){ localStorage.ezz_installed = 1; EZZ.ping("install"); }
   EZZ.ping("launch");
+  // show notification banner sent from ezz (needs Supabase in ezz Integrations)
+  EZZ.notify = function(sbUrl, sbKey){
+    fetch(sbUrl + "/rest/v1/ezz_stats?event=eq.notify&select=app_name,meta,created_at" +
+      "&order=created_at.desc&limit=1", {headers:{apikey:sbKey, Authorization:"Bearer "+sbKey}})
+    .then(function(r){ return r.json(); })
+    .then(function(rows){
+      var n = rows && rows[0];
+      if(!n || (n.app_name !== "*" && n.app_name !== EZZ.app)) return;
+      if(localStorage.ezz_lastNotif === n.created_at) return;   // already shown
+      localStorage.ezz_lastNotif = n.created_at;
+      var m = n.meta || {};
+      var d = document.createElement("div");
+      d.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);" +
+        "z-index:99999;background:#1f2440;color:#fff;padding:14px 20px;border-radius:14px;" +
+        "font-family:sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:90%;cursor:pointer";
+      d.innerHTML = "<b>" + (m.title||"") + "</b><br><span style='font-size:13px;opacity:.85'>" +
+        (m.msg||"") + "</span>";
+      d.onclick = function(){ if(m.link) location.href = m.link; d.remove(); };
+      document.body.appendChild(d);
+      setTimeout(function(){ d.remove(); }, 8000);
+    }).catch(function(){});
+  };
+  // EZZ.notify("https://xxxx.supabase.co", "YOUR_ANON_KEY");  // <- uncomment + fill to enable
   window.EZZ = EZZ;
 })();
 </script>
