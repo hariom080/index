@@ -8,41 +8,61 @@
    <script>
 (function(){
   var EZZ = {
-    app: "MY-APP-NAME",                    // same name as in ezz
-    endpoint: "https://script.google.com/macros/s/AKfycbziPmN2F5rhes-aBwgTWPuOq8hu9F_2ql6a2ioRVRXtvl5Eatr5lowB1Ubnio38SV8/exec",
-    ping: function(ev){
-      var u = localStorage.ezz_uid || (localStorage.ezz_uid =
-              Math.random().toString(36).slice(2));
-      new Image().src = this.endpoint + "?app=" + encodeURIComponent(this.app)
-        + "&event=" + ev + "&user=" + u + "&t=" + Date.now();
-    }
-  };
-  if(!localStorage.ezz_installed){ localStorage.ezz_installed = 1; EZZ.ping("install"); }
-  EZZ.ping("launch");
-  // show notification banner sent from ezz (needs Supabase in ezz Integrations)
-  EZZ.notify = function(sbUrl, sbKey){
-    fetch(sbUrl + "/rest/v1/ezz_stats?event=eq.notify&select=app_name,meta,created_at" +
-      "&order=created_at.desc&limit=1", {headers:{apikey:sbKey, Authorization:"Bearer "+sbKey}})
-    .then(function(r){ return r.json(); })
-    .then(function(rows){
-      var n = rows && rows[0];
-      if(!n || (n.app_name !== "*" && n.app_name !== EZZ.app)) return;
-      if(localStorage.ezz_lastNotif === n.created_at) return;   // already shown
-      localStorage.ezz_lastNotif = n.created_at;
-      var m = n.meta || {};
+    app:  "MY-APP-NAME",          // must match the name in ezz
+    url:  "https://xxxx.supabase.co",
+    key:  "YOUR_ANON_KEY",
+    uid:  localStorage.ezz_uid || (localStorage.ezz_uid = Math.random().toString(36).slice(2)),
+    _q: function(path, opts){
+      return fetch(this.url.replace(/\/$/,"") + "/rest/v1/" + path,
+        Object.assign({ headers:{ apikey:this.key, Authorization:"Bearer "+this.key,
+          "Content-Type":"application/json" } }, opts||{}));
+    },
+    track: function(event, meta){
+      return this._q("ezz_stats", { method:"POST",
+        headers:{ apikey:this.key, Authorization:"Bearer "+this.key,
+          "Content-Type":"application/json", Prefer:"return=minimal" },
+        body: JSON.stringify({ app_name:this.app, event:event,
+          meta: Object.assign({ user:this.uid }, meta||{}) }) }).catch(function(){});
+    },
+    onNotify: function(){
+      var self=this;
+      this._q("ezz_stats?event=eq.notify&order=created_at.desc&limit=5" +
+              "&or=(app_name.eq.*,app_name.eq." + encodeURIComponent(this.app) + ")")
+        .then(function(r){ return r.json(); })
+        .then(function(rows){
+          var n = rows && rows[0]; if(!n) return;
+          if(localStorage.ezz_seen === n.created_at) return;   // show each once
+          localStorage.ezz_seen = n.created_at;
+          self.banner(n.meta || {});
+        }).catch(function(){});
+    },
+    getConfig: function(cb){
+      this._q("ezz_config?app_name=eq." + encodeURIComponent(this.app) + "&select=config&limit=1")
+        .then(function(r){ return r.json(); })
+        .then(function(rows){ cb((rows[0] && rows[0].config) || {}); })
+        .catch(function(){ cb({}); });
+    },
+    banner: function(m){
+      var col = {info:"#6c5ce7",update:"#00cec9",warn:"#ffb020",promo:"#e84393"}[m.type] || "#6c5ce7";
       var d = document.createElement("div");
-      d.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);" +
-        "z-index:99999;background:#1f2440;color:#fff;padding:14px 20px;border-radius:14px;" +
-        "font-family:sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:90%;cursor:pointer";
-      d.innerHTML = "<b>" + (m.title||"") + "</b><br><span style='font-size:13px;opacity:.85'>" +
-        (m.msg||"") + "</span>";
+      d.style.cssText = "position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:99999;" +
+        "background:#1f2440;color:#fff;padding:14px 18px;border-radius:14px;font:14px sans-serif;" +
+        "box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:92%;border-left:5px solid " + col + ";cursor:pointer";
+      d.innerHTML = "<b>" + (m.title||"") + "</b><div style='font-size:13px;opacity:.85;margin-top:3px'>" +
+        (m.msg||"") + "</div>";
       d.onclick = function(){ if(m.link) location.href = m.link; d.remove(); };
       document.body.appendChild(d);
-      setTimeout(function(){ d.remove(); }, 8000);
-    }).catch(function(){});
+      setTimeout(function(){ d.remove(); }, 9000);
+    },
+    init: function(){
+      if(!localStorage.ezz_installed){ localStorage.ezz_installed = 1; this.track("install"); }
+      this.track("launch");
+      this.onNotify();
+      return this;
+    }
   };
-  // EZZ.notify("https://xxxx.supabase.co", "YOUR_ANON_KEY");  // <- uncomment + fill to enable
-  window.EZZ = EZZ;
+  window.EZZ = EZZ.init();
+  // EZZ.getConfig(function(cfg){ if(cfg.maintenance) alert(cfg.message); });
 })();
 </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
