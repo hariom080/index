@@ -9,8 +9,8 @@
 /* app services SDK */
 (function(){
   var EZZ = {
-    app: "ASCEND",
-    id: "qjzlmexw",
+    app: "MY-APP-NAME",
+    id: "APP-ID",
     url: "https://psqnpecwjfqqhazttfkt.supabase.co",
     key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcW5wZWN3amZxcWhhenR0Zmt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxODE5NzcsImV4cCI6MjA5OTc1Nzk3N30.irrHe0BggrLlmdJU-3ySXSUmikcYuqzEJMS24f4G3gI",
     uid: localStorage.ezz_uid || (localStorage.ezz_uid = Math.random().toString(36).slice(2)),
@@ -47,14 +47,6 @@
         if (m.icon){
           var l = document.querySelector("link[rel~='icon']") || document.createElement("link");
           l.rel = "icon"; l.href = m.icon; document.head.appendChild(l);
-        }
-        if ((m.splashColor || m.splashImg) && !self._splashed){
-          self._splashed = 1;
-          var s = document.createElement("div");
-          s.style.cssText = "position:fixed;inset:0;z-index:99998;transition:opacity .5s;background:" +
-            (m.splashImg ? "url(" + m.splashImg + ") center/cover" : m.splashColor);
-          document.body.appendChild(s);
-          setTimeout(function(){ s.style.opacity = "0"; setTimeout(function(){ s.remove(); }, 500); }, 1500);
         }
         if (m.version && localStorage.ezz_ver !== m.version){
           var first = !localStorage.ezz_ver; localStorage.ezz_ver = m.version;
