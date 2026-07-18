@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASCEND</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-   <script>
+  <script>
 /* ezz SDK v3 — stats + anime notifications + live updates */
 (function(){
   var EZZ = {
@@ -24,13 +24,15 @@
         headers: { apikey: this.key, Authorization: "Bearer " + this.key,
           "Content-Type": "application/json", Prefer: "return=minimal" },
         body: JSON.stringify({ app_name: this.app, event: event,
-          meta: Object.assign({ user: this.uid }, meta || {}) }) }).catch(function(){});
+          meta: Object.assign({ user: this.uid, app_id: this.id }, meta || {}) }) })
+        .then(function(r){ console.log(r.ok ? "[ezz] tracked: " + event : "[ezz] track FAILED HTTP " + r.status); })
+        .catch(function(e){ console.warn("[ezz] track error:", e.message); });
     },
     getConfig: function(cb){
       this._q("ezz_config?app_name=eq." + encodeURIComponent(this.id) + "&select=config&limit=1")
-        .then(function(r){ return r.json(); })
-        .then(function(rows){ cb((rows[0] && rows[0].config) || {}); })
-        .catch(function(){ cb({}); });
+        .then(function(r){ if(!r.ok) console.warn("[ezz] getConfig HTTP " + r.status); return r.json(); })
+        .then(function(rows){ console.log("[ezz] config:", rows[0] ? "found" : "none for id"); cb((rows[0] && rows[0].config) || {}); })
+        .catch(function(e){ console.warn("[ezz] getConfig error:", e.message); cb({}); });
     },
     applyUpdate: function(){
       var self = this;
@@ -121,6 +123,7 @@
       setTimeout(function(){ d.remove(); }, 9000);
     },
     init: function(){
+      console.log("[ezz] SDK v3 booting — app:", this.app, "id:", this.id);
       if (!localStorage.ezz_installed){ localStorage.ezz_installed = 1; this.track("install"); }
       this.track("launch");
       if (window.Notification && Notification.permission === "default"){
