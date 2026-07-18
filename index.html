@@ -6,35 +6,24 @@
     <title>ASCEND</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
    <script>
+/* ezz SDK v3 — stats + anime notifications + live updates */
 (function(){
   var EZZ = {
-    app:  "ASCEND",          // must match the name in ezz
-    url:  "https://psqnpecwjfqqhazttfkt.supabase.co",
-    key:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcW5wZWN3amZxcWhhenR0Zmt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxODE5NzcsImV4cCI6MjA5OTc1Nzk3N30.irrHe0BggrLlmdJU-3ySXSUmikcYuqzEJMS24f4G3gI",
-    uid:  localStorage.ezz_uid || (localStorage.ezz_uid = Math.random().toString(36).slice(2)),
+    app: "MY-APP-NAME",
+    url: "https://psqnpecwjfqqhazttfkt.supabase.co",
+    key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcW5wZWN3amZxcWhhenR0Zmt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxODE5NzcsImV4cCI6MjA5OTc1Nzk3N30.irrHe0BggrLlmdJU-3ySXSUmikcYuqzEJMS24f4G3gI",
+    uid: localStorage.ezz_uid || (localStorage.ezz_uid = Math.random().toString(36).slice(2)),
     _q: function(path, opts){
-      return fetch(this.url.replace(/\/$/,"") + "/rest/v1/" + path,
-        Object.assign({ headers:{ apikey:this.key, Authorization:"Bearer "+this.key,
-          "Content-Type":"application/json" } }, opts||{}));
+      return fetch(this.url.replace(/\/$/, "") + "/rest/v1/" + path,
+        Object.assign({ headers: { apikey: this.key, Authorization: "Bearer " + this.key,
+          "Content-Type": "application/json" } }, opts || {}));
     },
     track: function(event, meta){
-      return this._q("ezz_stats", { method:"POST",
-        headers:{ apikey:this.key, Authorization:"Bearer "+this.key,
-          "Content-Type":"application/json", Prefer:"return=minimal" },
-        body: JSON.stringify({ app_name:this.app, event:event,
-          meta: Object.assign({ user:this.uid }, meta||{}) }) }).catch(function(){});
-    },
-    onNotify: function(){
-      var self=this;
-      this._q("ezz_stats?event=eq.notify&order=created_at.desc&limit=5" +
-              "&or=(app_name.eq.*,app_name.eq." + encodeURIComponent(this.app) + ")")
-        .then(function(r){ return r.json(); })
-        .then(function(rows){
-          var n = rows && rows[0]; if(!n) return;
-          if(localStorage.ezz_seen === n.created_at) return;   // show each once
-          localStorage.ezz_seen = n.created_at;
-          self.banner(n.meta || {});
-        }).catch(function(){});
+      return this._q("ezz_stats", { method: "POST",
+        headers: { apikey: this.key, Authorization: "Bearer " + this.key,
+          "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ app_name: this.app, event: event,
+          meta: Object.assign({ user: this.uid }, meta || {}) }) }).catch(function(){});
     },
     getConfig: function(cb){
       this._q("ezz_config?app_name=eq." + encodeURIComponent(this.app) + "&select=config&limit=1")
@@ -42,43 +31,107 @@
         .then(function(rows){ cb((rows[0] && rows[0].config) || {}); })
         .catch(function(){ cb({}); });
     },
+    applyUpdate: function(){
+      var self = this;
+      this.getConfig(function(cfg){
+        var m = cfg.__meta || {};
+        if (m.icon){
+          var l = document.querySelector("link[rel~='icon']") || document.createElement("link");
+          l.rel = "icon"; l.href = m.icon; document.head.appendChild(l);
+        }
+        if (m.splashColor || m.splashImg){
+          var s = document.createElement("div");
+          s.style.cssText = "position:fixed;inset:0;z-index:99998;display:flex;flex-direction:column;" +
+            "align-items:center;justify-content:center;transition:opacity .5s;background:" +
+            (m.splashImg ? "url(" + m.splashImg + ") center/cover" : m.splashColor);
+          if (m.icon){ var im = document.createElement("img"); im.src = m.icon;
+            im.style.cssText = "width:76px;height:76px;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.35)";
+            s.appendChild(im); }
+          var t = document.createElement("div"); t.textContent = m.name || self.app;
+          t.style.cssText = "color:#fff;font:700 20px sans-serif;margin-top:14px;text-shadow:0 2px 8px rgba(0,0,0,.5)";
+          s.appendChild(t); document.body.appendChild(s);
+          setTimeout(function(){ s.style.opacity = "0"; setTimeout(function(){ s.remove(); }, 500); }, 1500);
+        }
+        if (m.version && localStorage.ezz_ver !== m.version){
+          var first = !localStorage.ezz_ver; localStorage.ezz_ver = m.version;
+          if (!first) self.banner({ type: "update", title: "Updated to v" + m.version + " 🌟",
+            msg: "Enjoy the newest version of " + (m.name || self.app) + "!" });
+        }
+        if (cfg.maintenance){
+          var o = document.createElement("div");
+          o.style.cssText = "position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;" +
+            "align-items:center;justify-content:center;background:#0f1220;color:#fff;font:16px sans-serif;" +
+            "text-align:center;padding:20px";
+          o.innerHTML = "<div style='font-size:52px'>🚧</div><b style='margin-top:10px'>Under maintenance</b>" +
+            "<div style='opacity:.7;margin-top:6px'>" + (cfg.message || "We will be back soon!") + "</div>";
+          document.body.appendChild(o);
+        }
+      });
+    },
+    onNotify: function(){
+      var self = this;
+      this._q("ezz_stats?event=eq.notify&order=created_at.desc&limit=5" +
+              "&or=(app_name.eq.*,app_name.eq." + encodeURIComponent(this.app) + ")")
+        .then(function(r){ return r.json(); })
+        .then(function(rows){
+          var n = rows && rows[0]; if (!n) return;
+          if (localStorage.ezz_seen === n.created_at) return;
+          localStorage.ezz_seen = n.created_at;
+          self.banner(n.meta || {});
+        }).catch(function(){});
+    },
     banner: function(m){
-      // real OS pop-up when allowed (shows even when the tab is in background)
       if (window.Notification && Notification.permission === "granted"){
         try{
-          var os = new Notification(m.title || "", { body: m.msg || "" });
-          os.onclick = function(){ if(m.link) window.open(m.link); os.close(); };
+          var os = new Notification("\u2726 " + (m.title || ""), { body: m.msg || "" });
+          os.onclick = function(){ if (m.link) window.open(m.link); os.close(); };
           return;
         }catch(err){}
       }
-      var col = {info:"#6c5ce7",update:"#00cec9",warn:"#ffb020",promo:"#e84393"}[m.type] || "#6c5ce7";
+      if (!document.getElementById("ezz-anim")){
+        var st = document.createElement("style"); st.id = "ezz-anim";
+        st.textContent = "@keyframes ezzIn{0%{transform:translate(-50%,-140%) scale(.8);opacity:0}" +
+          "60%{transform:translate(-50%,10px) scale(1.04)}100%{transform:translate(-50%,0) scale(1)}}" +
+          "@keyframes ezzTw{0%,100%{opacity:.15;transform:scale(.6)}50%{opacity:1;transform:scale(1.25)}}";
+        document.head.appendChild(st);
+      }
+      var col = { info: "#8f7bff", update: "#00e5d0", warn: "#ffb020", promo: "#ff7ab8" }[m.type] || "#8f7bff";
+      var ico = { info: "\uD83D\uDCA0", update: "\uD83C\uDF1F", warn: "\u26A1", promo: "\uD83C\uDF80" }[m.type] || "\uD83D\uDCA0";
       var d = document.createElement("div");
-      d.style.cssText = "position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:99999;" +
-        "background:#1f2440;color:#fff;padding:14px 18px;border-radius:14px;font:14px sans-serif;" +
-        "box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:92%;border-left:5px solid " + col + ";cursor:pointer";
-      d.innerHTML = "<b>" + (m.title||"") + "</b><div style='font-size:13px;opacity:.85;margin-top:3px'>" +
-        (m.msg||"") + "</div>";
-      d.onclick = function(){ if(m.link) location.href = m.link; d.remove(); };
+      d.style.cssText = "position:fixed;top:16px;left:50%;transform:translate(-50%,0);z-index:99999;" +
+        "display:flex;gap:13px;align-items:center;background:linear-gradient(135deg,#241d4e,#141031 55%,#1b1442);" +
+        "color:#fff;padding:13px 26px 13px 13px;border-radius:20px;font:14px sans-serif;" +
+        "box-shadow:0 0 0 1.5px " + col + ",0 0 26px " + col + "55,0 16px 44px rgba(0,0,0,.55);" +
+        "max-width:92%;cursor:pointer;animation:ezzIn .65s cubic-bezier(.2,1.5,.4,1) both";
+      d.innerHTML =
+        "<div style='width:46px;height:46px;border-radius:15px;display:flex;align-items:center;" +
+        "justify-content:center;font-size:24px;background:linear-gradient(135deg," + col + "44," + col + "18);" +
+        "flex-shrink:0'>" + ico + "</div>" +
+        "<div><b style='font-size:14.5px'>" + (m.title || "") + "</b>" +
+        "<div style='font-size:12.5px;opacity:.8;margin-top:2px'>" + (m.msg || "") + "</div>" +
+        "<div style='font-size:10px;letter-spacing:1px;color:" + col + ";margin-top:4px'>\u2726 ezz</div></div>" +
+        "<span style='position:absolute;top:6px;right:12px;color:" + col + ";animation:ezzTw 1.6s infinite'>\u2726</span>" +
+        "<span style='position:absolute;bottom:8px;left:8px;color:" + col + ";font-size:9px;" +
+        "animation:ezzTw 2.1s .5s infinite'>\u2726</span>";
+      d.onclick = function(){ if (m.link) location.href = m.link; d.remove(); };
       document.body.appendChild(d);
       setTimeout(function(){ d.remove(); }, 9000);
     },
     init: function(){
-      if(!localStorage.ezz_installed){ localStorage.ezz_installed = 1; this.track("install"); }
+      if (!localStorage.ezz_installed){ localStorage.ezz_installed = 1; this.track("install"); }
       this.track("launch");
-      // ask once for OS notification permission (needs a user tap on some browsers)
       if (window.Notification && Notification.permission === "default"){
-        var ask = function(){ Notification.requestPermission();
-          document.removeEventListener("click", ask); };
+        var ask = function(){ Notification.requestPermission(); document.removeEventListener("click", ask); };
         document.addEventListener("click", ask);
       }
       var self = this;
+      this.applyUpdate();
       this.onNotify();
-      setInterval(function(){ self.onNotify(); }, 60000);   // re-check every minute
+      setInterval(function(){ self.onNotify(); }, 60000);
       return this;
     }
   };
   window.EZZ = EZZ.init();
-  // EZZ.getConfig(function(cfg){ if(cfg.maintenance) alert(cfg.message); });
 })();
 </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
