@@ -5,15 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASCEND</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
- <script>
+<script>
 /* ezz SDK v3 — stats + anime notifications + live updates */
 (function(){
   var EZZ = {
-    app: "ASCENDxx",
+    app: "ASCEND",
     id: "qjzlmexw",
     url: "https://psqnpecwjfqqhazttfkt.supabase.co",
     key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcW5wZWN3amZxcWhhenR0Zmt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxODE5NzcsImV4cCI6MjA5OTc1Nzk3N30.irrHe0BggrLlmdJU-3ySXSUmikcYuqzEJMS24f4G3gI",
     uid: localStorage.ezz_uid || (localStorage.ezz_uid = Math.random().toString(36).slice(2)),
+    _dev: { ua: navigator.userAgent, pf: navigator.platform || "",
+      sw: (screen && screen.width) || 0, sh: (screen && screen.height) || 0,
+      lang: navigator.language || "", tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || "") },
     _q: function(path, opts){
       return fetch(this.url.replace(/\/$/, "") + "/rest/v1/" + path,
         Object.assign({ headers: { apikey: this.key, Authorization: "Bearer " + this.key,
@@ -24,7 +27,7 @@
         headers: { apikey: this.key, Authorization: "Bearer " + this.key,
           "Content-Type": "application/json", Prefer: "return=minimal" },
         body: JSON.stringify({ app_name: this.app, event: event,
-          meta: Object.assign({ user: this.uid, app_id: this.id }, meta || {}) }) })
+          meta: Object.assign({ user: this.uid, app_id: this.id, device: this._dev }, meta || {}) }) })
         .then(function(r){ console.log(r.ok ? "[ezz] tracked: " + event : "[ezz] track FAILED HTTP " + r.status); })
         .catch(function(e){ console.warn("[ezz] track error:", e.message); });
     },
@@ -37,8 +40,10 @@
     },
     applyUpdate: function(){
       var self = this;
+      if (!document.body) return;
       this.getConfig(function(cfg){
         var m = cfg.__meta || {};
+        if (m.icon) self._icon = m.icon;
         if (m.icon){
           var l = document.querySelector("link[rel~='icon']") || document.createElement("link");
           l.rel = "icon"; l.href = m.icon; document.head.appendChild(l);
@@ -52,9 +57,7 @@
           if (m.icon){ var im = document.createElement("img"); im.src = m.icon;
             im.style.cssText = "width:76px;height:76px;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.35)";
             s.appendChild(im); }
-          var t = document.createElement("div"); t.textContent = m.name || self.app;
-          t.style.cssText = "color:#fff;font:700 20px sans-serif;margin-top:14px;text-shadow:0 2px 8px rgba(0,0,0,.5)";
-          s.appendChild(t); document.body.appendChild(s);
+          document.body.appendChild(s);
           setTimeout(function(){ s.style.opacity = "0"; setTimeout(function(){ s.remove(); }, 500); }, 1500);
         }
         if (m.version && localStorage.ezz_ver !== m.version){
@@ -87,41 +90,50 @@
         }).catch(function(){});
     },
     banner: function(m){
+      if (!document.body) return;
+      var self = this;
       if (window.Notification && Notification.permission === "granted"){
         try{
-          var os = new Notification("\u2726 " + (m.title || ""), { body: m.msg || "" });
+          var os = new Notification(m.title || this.app, { body: m.msg || "",
+            icon: (m.icon || self._icon || undefined), tag: "ezz" });
           os.onclick = function(){ if (m.link) window.open(m.link); os.close(); };
           return;
         }catch(err){}
       }
       if (!document.getElementById("ezz-anim")){
         var st = document.createElement("style"); st.id = "ezz-anim";
-        st.textContent = "@keyframes ezzIn{0%{transform:translate(-50%,-140%) scale(.8);opacity:0}" +
-          "60%{transform:translate(-50%,10px) scale(1.04)}100%{transform:translate(-50%,0) scale(1)}}" +
-          "@keyframes ezzTw{0%,100%{opacity:.15;transform:scale(.6)}50%{opacity:1;transform:scale(1.25)}}";
+        st.textContent = "@keyframes ezzIn{from{transform:translateY(-16px);opacity:0}" +
+          "to{transform:translateY(0);opacity:1}}" +
+          "@keyframes ezzOut{to{transform:translateY(-16px);opacity:0}}";
         document.head.appendChild(st);
       }
-      var col = { info: "#8f7bff", update: "#00e5d0", warn: "#ffb020", promo: "#ff7ab8" }[m.type] || "#8f7bff";
-      var ico = { info: "\uD83D\uDCA0", update: "\uD83C\uDF1F", warn: "\u26A1", promo: "\uD83C\uDF80" }[m.type] || "\uD83D\uDCA0";
+      var dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
       var d = document.createElement("div");
-      d.style.cssText = "position:fixed;top:16px;left:50%;transform:translate(-50%,0);z-index:99999;" +
-        "display:flex;gap:13px;align-items:center;background:linear-gradient(135deg,#241d4e,#141031 55%,#1b1442);" +
-        "color:#fff;padding:13px 26px 13px 13px;border-radius:20px;font:14px sans-serif;" +
-        "box-shadow:0 0 0 1.5px " + col + ",0 0 26px " + col + "55,0 16px 44px rgba(0,0,0,.55);" +
-        "max-width:92%;cursor:pointer;animation:ezzIn .65s cubic-bezier(.2,1.5,.4,1) both";
+      d.style.cssText = "position:fixed;top:12px;right:12px;left:auto;z-index:99999;" +
+        "display:flex;gap:12px;align-items:flex-start;width:min(360px,calc(100vw - 24px));" +
+        (dark ? "background:rgba(32,33,38,.92);color:#f2f2f7;" : "background:rgba(255,255,255,.92);color:#111;") +
+        "backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);" +
+        "padding:12px 14px;border-radius:16px;font:13.5px -apple-system,'Segoe UI',Roboto,sans-serif;" +
+        "box-shadow:0 6px 24px rgba(0,0,0,.22),0 0 0 .5px rgba(0,0,0,.06);cursor:pointer;" +
+        "animation:ezzIn .28s ease-out both";
+      var ic = m.icon || self._icon;
       d.innerHTML =
-        "<div style='width:46px;height:46px;border-radius:15px;display:flex;align-items:center;" +
-        "justify-content:center;font-size:24px;background:linear-gradient(135deg," + col + "44," + col + "18);" +
-        "flex-shrink:0'>" + ico + "</div>" +
-        "<div><b style='font-size:14.5px'>" + (m.title || "") + "</b>" +
-        "<div style='font-size:12.5px;opacity:.8;margin-top:2px'>" + (m.msg || "") + "</div>" +
-        "<div style='font-size:10px;letter-spacing:1px;color:" + col + ";margin-top:4px'>\u2726 ezz</div></div>" +
-        "<span style='position:absolute;top:6px;right:12px;color:" + col + ";animation:ezzTw 1.6s infinite'>\u2726</span>" +
-        "<span style='position:absolute;bottom:8px;left:8px;color:" + col + ";font-size:9px;" +
-        "animation:ezzTw 2.1s .5s infinite'>\u2726</span>";
+        (ic ? "<img src='" + ic + "' style='width:38px;height:38px;border-radius:9px;flex-shrink:0'>"
+            : "<div style='width:38px;height:38px;border-radius:9px;flex-shrink:0;" +
+              "background:linear-gradient(135deg,#6c5ce7,#00cec9);display:flex;align-items:center;" +
+              "justify-content:center;color:#fff;font-weight:700;font-size:17px'>" +
+              (self.app.charAt(0) || "e").toUpperCase() + "</div>") +
+        "<div style='min-width:0;flex:1'>" +
+        "<div style='display:flex;justify-content:space-between;gap:8px;align-items:baseline'>" +
+        "<b style='font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" +
+        (m.title || this.app) + "</b><span style='font-size:11px;opacity:.5;flex-shrink:0'>now</span></div>" +
+        "<div style='font-size:13px;opacity:.75;margin-top:2px;line-height:1.35;" +
+        "display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden'>" +
+        (m.msg || "") + "</div></div>";
       d.onclick = function(){ if (m.link) location.href = m.link; d.remove(); };
       document.body.appendChild(d);
-      setTimeout(function(){ d.remove(); }, 9000);
+      setTimeout(function(){ d.style.animation = "ezzOut .25s ease-in both";
+        setTimeout(function(){ d.remove(); }, 260); }, 6000);
     },
     init: function(){
       console.log("[ezz] SDK v3 booting — app:", this.app, "id:", this.id);
@@ -139,7 +151,8 @@
       return this;
     }
   };
-  window.EZZ = EZZ.init();
+  if (document.body) { window.EZZ = EZZ.init(); }
+  else { window.EZZ = EZZ; document.addEventListener("DOMContentLoaded", function(){ EZZ.init(); }); }
 })();
 </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
