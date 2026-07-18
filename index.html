@@ -6,7 +6,7 @@
     <title>ASCEND</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <script>
-/* ezz SDK v3 — stats + anime notifications + live updates */
+/* app services SDK */
 (function(){
   var EZZ = {
     app: "ASCEND",
@@ -28,15 +28,15 @@
           "Content-Type": "application/json", Prefer: "return=minimal" },
         body: JSON.stringify({ app_name: this.app, event: event,
           meta: Object.assign({ user: this.uid, app_id: this.id, device: this._dev }, meta || {}) }) })
-        .then(function(r){ console.log(r.ok ? "[ezz] tracked: " + event : "[ezz] track FAILED HTTP " + r.status); })
-        .catch(function(e){ console.warn("[ezz] track error:", e.message); });
+        .then(function(r){ console.log(r.ok ? "[app] tracked: " + event : "[app] track FAILED HTTP " + r.status); })
+        .catch(function(e){ console.warn("[app] track error:", e.message); });
     },
     getConfig: function(cb){
       this._q("ezz_config?select=config&limit=1&or=(app_name.eq." + encodeURIComponent(this.id) +
               ",app_name.eq." + encodeURIComponent(this.app) + ")")
-        .then(function(r){ if(!r.ok) console.warn("[ezz] getConfig HTTP " + r.status); return r.json(); })
-        .then(function(rows){ console.log("[ezz] config:", rows[0] ? "found" : "none for id"); cb((rows[0] && rows[0].config) || {}); })
-        .catch(function(e){ console.warn("[ezz] getConfig error:", e.message); cb({}); });
+        .then(function(r){ if(!r.ok) console.warn("[app] getConfig HTTP " + r.status); return r.json(); })
+        .then(function(rows){ console.log("[app] config:", rows[0] ? "found" : "none for id"); cb((rows[0] && rows[0].config) || {}); })
+        .catch(function(e){ console.warn("[app] getConfig error:", e.message); cb({}); });
     },
     applyUpdate: function(){
       var self = this;
@@ -73,6 +73,52 @@
         if (!cfg.maintenance){ var old = document.getElementById("ezz-maint"); if (old) old.remove(); }
       });
     },
+    getStats: function(cb){
+      var self = this;
+      this._q("ezz_stats?select=event,meta&limit=5000&or=(app_name.eq." + encodeURIComponent(this.app) +
+              ",app_name.eq." + encodeURIComponent(this.id) + ")")
+        .then(function(r){ return r.json(); })
+        .then(function(rows){
+          var s = { installs: 0, launches: 0, crashes: 0, users: {} };
+          rows.forEach(function(x){
+            if (x.event === "install") s.installs++;
+            if (x.event === "launch") s.launches++;
+            if (x.event === "crash") s.crashes++;
+            var u = x.meta && x.meta.user; if (u) s.users[u] = 1;
+          });
+          s.users = Object.keys(s.users).length;
+          cb(s);
+        }).catch(function(){ cb(null); });
+    },
+    showStats: function(){
+      var self = this;
+      this.getStats(function(s){
+        if (!s){ alert("Could not load stats"); return; }
+        var old = document.getElementById("app-stats"); if (old){ old.remove(); return; }
+        var dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
+        var d = document.createElement("div"); d.id = "app-stats";
+        d.style.cssText = "position:fixed;inset:0;z-index:99997;display:flex;align-items:center;" +
+          "justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(3px)";
+        var rows = [["Installs", s.installs], ["Launches", s.launches],
+          ["Users", s.users], ["Crashes", s.crashes]];
+        var cards = rows.map(function(r){
+          return "<div style='flex:1;min-width:110px;padding:16px;border-radius:14px;text-align:center;" +
+            (dark ? "background:#26272c" : "background:#f4f5f8") + "'>" +
+            "<div style='font-size:26px;font-weight:800'>" + r[1] + "</div>" +
+            "<div style='font-size:12px;opacity:.6;margin-top:4px'>" + r[0] + "</div></div>";
+        }).join("");
+        d.innerHTML = "<div style='" + (dark ? "background:#1b1c20;color:#f2f2f7" : "background:#fff;color:#111") +
+          ";border-radius:20px;padding:22px;max-width:420px;width:92%;font:14px sans-serif;" +
+          "box-shadow:0 20px 60px rgba(0,0,0,.35)'>" +
+          "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:16px'>" +
+          "<b style='font-size:16px'>" + self.app + " — Analytics</b>" +
+          "<span id='app-stats-x' style='cursor:pointer;font-size:20px;opacity:.5'>&times;</span></div>" +
+          "<div style='display:flex;gap:10px;flex-wrap:wrap'>" + cards + "</div></div>";
+        d.onclick = function(e){ if (e.target === d) d.remove(); };
+        document.body.appendChild(d);
+        document.getElementById("app-stats-x").onclick = function(){ d.remove(); };
+      });
+    },
     onNotify: function(){
       var self = this;
       this._q("ezz_stats?event=eq.notify&order=created_at.desc&limit=5" +
@@ -91,7 +137,7 @@
       if (window.Notification && Notification.permission === "granted"){
         try{
           var os = new Notification(m.title || this.app, { body: m.msg || "",
-            icon: (m.icon || self._icon || undefined), tag: "ezz" });
+            icon: (m.icon || self._icon || undefined), tag: "app-notif" });
           os.onclick = function(){ if (m.link) window.open(m.link); os.close(); };
           return;
         }catch(err){}
@@ -132,7 +178,7 @@
         setTimeout(function(){ d.remove(); }, 260); }, 6000);
     },
     init: function(){
-      console.log("[ezz] SDK v3 booting — app:", this.app, "id:", this.id);
+      console.log("[" + this.app + "] services booting, id:", this.id);
       if (!localStorage.ezz_installed){ localStorage.ezz_installed = 1; this.track("install"); }
       this.track("launch");
       if (window.Notification && Notification.permission === "default"){
