@@ -10,6 +10,7 @@
 (function(){
   var EZZ = {
     app: "MY-APP-NAME",
+    id: "APP-ID",
     url: "https://psqnpecwjfqqhazttfkt.supabase.co",
     key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcW5wZWN3amZxcWhhenR0Zmt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxODE5NzcsImV4cCI6MjA5OTc1Nzk3N30.irrHe0BggrLlmdJU-3ySXSUmikcYuqzEJMS24f4G3gI",
     uid: localStorage.ezz_uid || (localStorage.ezz_uid = Math.random().toString(36).slice(2)),
@@ -26,7 +27,7 @@
           meta: Object.assign({ user: this.uid }, meta || {}) }) }).catch(function(){});
     },
     getConfig: function(cb){
-      this._q("ezz_config?app_name=eq." + encodeURIComponent(this.app) + "&select=config&limit=1")
+      this._q("ezz_config?app_name=eq." + encodeURIComponent(this.id) + "&select=config&limit=1")
         .then(function(r){ return r.json(); })
         .then(function(rows){ cb((rows[0] && rows[0].config) || {}); })
         .catch(function(){ cb({}); });
@@ -39,7 +40,8 @@
           var l = document.querySelector("link[rel~='icon']") || document.createElement("link");
           l.rel = "icon"; l.href = m.icon; document.head.appendChild(l);
         }
-        if (m.splashColor || m.splashImg){
+        if ((m.splashColor || m.splashImg) && !self._splashed){
+          self._splashed = 1;
           var s = document.createElement("div");
           s.style.cssText = "position:fixed;inset:0;z-index:99998;display:flex;flex-direction:column;" +
             "align-items:center;justify-content:center;transition:opacity .5s;background:" +
@@ -57,8 +59,8 @@
           if (!first) self.banner({ type: "update", title: "Updated to v" + m.version + " 🌟",
             msg: "Enjoy the newest version of " + (m.name || self.app) + "!" });
         }
-        if (cfg.maintenance){
-          var o = document.createElement("div");
+        if (cfg.maintenance && !document.getElementById("ezz-maint")){
+          var o = document.createElement("div"); o.id = "ezz-maint";
           o.style.cssText = "position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;" +
             "align-items:center;justify-content:center;background:#0f1220;color:#fff;font:16px sans-serif;" +
             "text-align:center;padding:20px";
@@ -66,6 +68,7 @@
             "<div style='opacity:.7;margin-top:6px'>" + (cfg.message || "We will be back soon!") + "</div>";
           document.body.appendChild(o);
         }
+        if (!cfg.maintenance){ var old = document.getElementById("ezz-maint"); if (old) old.remove(); }
       });
     },
     onNotify: function(){
@@ -128,6 +131,7 @@
       this.applyUpdate();
       this.onNotify();
       setInterval(function(){ self.onNotify(); }, 60000);
+      setInterval(function(){ self.applyUpdate(); }, 300000);
       return this;
     }
   };
